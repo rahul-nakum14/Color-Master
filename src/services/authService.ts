@@ -2,13 +2,21 @@ import jwt from "jsonwebtoken"
 import crypto from "crypto"
 import User, { type IUser } from "../models/User"
 import ApiError from "../utils/apiError"
+import { config } from "../config/config"
 
 export const createUser = async (username: string, email: string, password: string) => {
-  const existingUser = await User.findOne({ email })
+  const existingUser = await User.findOne({
+    $or: [{ email }, { username }]
+  });
+  
   if (existingUser) {
-    throw new ApiError(400, "Email already in use")
+    if (existingUser.email === email) {
+      throw new ApiError(400, "Email already in use");
+    }
+    if (existingUser.username === username) {
+      throw new ApiError(400, "Username already in use");
+    }
   }
-
   const verificationToken = crypto.randomBytes(20).toString("hex")
   const verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
@@ -99,7 +107,7 @@ export const resetPassword = async (token: string, newPassword: string) => {
 
 export const refreshAccessToken = async (refreshToken: string) => {
   try {
-    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET as string) as { id: string }
+    const decoded = jwt.verify(refreshToken, config.JWT_REFRESH_SECRET as string) as { id: string }
     const user = await User.findById(decoded.id)
 
     if (!user) {
@@ -146,7 +154,7 @@ export const createOrUpdateOAuthUser = async (profile: OAuthProfile): Promise<{ 
 };
 
 const generateAccessToken = (user: IUser) => {
-  return jwt.sign({ id: user._id }, process.env.JWT_SECRET as string, {
+  return jwt.sign({ id: user._id },config.JWT_SECRET as string, {
     expiresIn: "15m",
   })
 }
@@ -156,7 +164,7 @@ const generateRefreshToken = (user: IUser) => {
     {
       id: user._id,
     },
-    process.env.JWT_REFRESH_SECRET as string,
+    config.JWT_REFRESH_SECRET as string,
     {
       expiresIn: "7d",
     },

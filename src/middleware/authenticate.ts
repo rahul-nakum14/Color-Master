@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import ApiError from '../utils/apiError';
 import User from '../models/User';
+import { config } from '../config/config';
 
 export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -11,7 +12,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       throw new ApiError(401, 'Authentication required');
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { id: string };
+    const decoded = jwt.verify(token, config.JWT_SECRET as string) as { id: string };
     const user = await User.findById(decoded.id).select('-password');
 
     if (!user) {

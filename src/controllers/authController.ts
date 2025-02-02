@@ -4,6 +4,7 @@ import * as authService from "../services/authService"
 import * as emailService from "../services/emailService"
 import axios from "axios"
 import type { OAuthProfile } from "../services/authService"
+import { config } from "../config/config"
 
 export const signup = catchAsync(async (req: Request, res: Response) => {
   const { username, email, password } = req.body
@@ -47,53 +48,55 @@ export const refreshToken = catchAsync(async (req: Request, res: Response) => {
 })
 
 export const googleAuth = catchAsync(async (req: Request, res: Response) => {
-  const { code } = req.body
+  const { code } = req.body;
+
   const { data } = await axios.post("https://oauth2.googleapis.com/token", {
     code,
-    client_id: process.env.GOOGLE_CLIENT_ID,
-    client_secret: process.env.GOOGLE_CLIENT_SECRET,
-    redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+    client_id: config.GOOGLE_CLIENT_ID,
+    client_secret:config.GOOGLE_CLIENT_SECRET,
+    redirect_uri: config.GOOGLE_REDIRECT_URI,
     grant_type: "authorization_code",
-  })
+  });
 
-  const { access_token } = data
+  const { access_token } = data;
   const { data: googleProfile } = await axios.get("https://www.googleapis.com/oauth2/v2/userinfo", {
     headers: { Authorization: `Bearer ${access_token}` },
-  })
+  });
 
   const profile: OAuthProfile = {
     id: googleProfile.id,
     email: googleProfile.email,
     provider: "google",
-  }
+  };
 
-  const { user, accessToken, refreshToken } = await authService.createOrUpdateOAuthUser(profile)
-  res.json({ user, accessToken, refreshToken })
-})
+  const { user, accessToken, refreshToken } = await authService.createOrUpdateOAuthUser(profile);
+  res.json({ user, accessToken, refreshToken });
+});
 
 export const facebookAuth = catchAsync(async (req: Request, res: Response) => {
-  const { code } = req.body
+  const { code } = req.body;
+
   const { data } = await axios.get("https://graph.facebook.com/v12.0/oauth/access_token", {
     params: {
-      client_id: process.env.FACEBOOK_APP_ID,
-      client_secret: process.env.FACEBOOK_APP_SECRET,
-      redirect_uri: process.env.FACEBOOK_REDIRECT_URI,
+      client_id: config.FACEBOOK_APP_ID,
+      client_secret: config.FACEBOOK_APP_SECRET,
+      redirect_uri: config.FACEBOOK_REDIRECT_URI,
       code,
     },
-  })
+  });
 
-  const { access_token } = data
+  const { access_token } = data;
   const { data: facebookProfile } = await axios.get("https://graph.facebook.com/me", {
     params: { fields: "id,email", access_token },
-  })
+  });
 
   const profile: OAuthProfile = {
     id: facebookProfile.id,
     email: facebookProfile.email,
     provider: "facebook",
-  }
+  };
 
-  const { user, accessToken, refreshToken } = await authService.createOrUpdateOAuthUser(profile)
-  res.json({ user, accessToken, refreshToken })
-})
+  const { user, accessToken, refreshToken } = await authService.createOrUpdateOAuthUser(profile);
+  res.json({ user, accessToken, refreshToken });
+});
 

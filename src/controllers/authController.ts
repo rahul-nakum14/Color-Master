@@ -3,8 +3,8 @@ import { catchAsync } from "../utils/catchAsync"
 import * as authService from "../services/authService"
 import * as emailService from "../services/emailService"
 import axios from "axios"
-import type { OAuthProfile } from "../services/authService"
 import { config } from "../config/config"
+import { OAuthProfile } from "../types/auth"
 
 export const signup = catchAsync(async (req: Request, res: Response) => {
   const { username, email, password } = req.body
@@ -29,7 +29,7 @@ export const verifyEmail = catchAsync(async (req: Request, res: Response) => {
 
 export const forgotPassword = catchAsync(async (req: Request, res: Response) => {
   const { email } = req.body
-  const resetToken = await authService.createPasswordResetToken(email)
+  const { resetToken } = await authService.createPasswordResetToken(email); // Destructure resetToken
   await emailService.sendPasswordResetEmail(email, resetToken)
   res.json({ message: "Password reset email sent." })
 })

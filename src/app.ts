@@ -29,6 +29,10 @@ app.use(express.urlencoded({ extended: true }))
 // Routes
 app.use("/api/v1", routes)
 
+app.get('/ping', (req, res) => {
+    res.status(200).json({ msg: 'Pong' });
+  })
+  
 // Error handling middleware
 app.use(errorHandler)
 

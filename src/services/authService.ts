@@ -4,6 +4,9 @@ import User, { type IUser } from "../models/User"
 import ApiError from "../utils/apiError"
 import { config } from "../config/config"
 import { AuthResponse, OAuthProfile } from "../types/auth"
+import { kafkaProducer } from "../config/kafka";
+import redisClient from "../config/redis";
+import axios from "axios"
 
 export const createUser = async (
   username: string,
@@ -33,6 +36,15 @@ export const createUser = async (
     verificationToken,
     verificationTokenExpires,
   });
+
+  // Publish event to Kafka
+  await kafkaProducer.send({
+    topic: "user-signup",
+    messages: [{ value: JSON.stringify({ email, verificationToken }) }],
+  });
+
+  // Cache user data in Redis
+  await redisClient.set(`user:${user.id}`, JSON.stringify(user), { EX: 3600 });
 
   return { user, verificationToken };
 };
@@ -173,3 +185,50 @@ const generateRefreshToken = (user: IUser) => {
     },
   )
 }
+
+export const handleGoogleAuth = async (code: string) => {
+  const { data } = await axios.post("https://oauth2.googleapis.com/token", {
+    code,
+    client_id: config.GOOGLE_CLIENT_ID,
+    client_secret: config.GOOGLE_CLIENT_SECRET,
+    redirect_uri: config.GOOGLE_REDIRECT_URI,
+    grant_type: "authorization_code",
+  });
+
+  const { access_token } = data;
+  const { data: googleProfile } = await axios.get("https://www.googleapis.com/oauth2/v2/userinfo", {
+    headers: { Authorization: `Bearer ${access_token}` },
+  });
+
+  const profile: OAuthProfile = {
+    id: googleProfile.id,
+    email: googleProfile.email,
+    provider: "google",
+  };
+
+  return await createOrUpdateOAuthUser(profile);
+};
+
+export const handleFacebookAuth = async (code: string) => {
+  const { data } = await axios.get("https://graph.facebook.com/v12.0/oauth/access_token", {
+    params: {
+      client_id: config.FACEBOOK_APP_ID,
+      client_secret: config.FACEBOOK_APP_SECRET,
+      redirect_uri: config.FACEBOOK_REDIRECT_URI,
+      code,
+    },
+  });
+
+  const { access_token } = data;
+  const { data: facebookProfile } = await axios.get("https://graph.facebook.com/me", {
+    params: { fields: "id,email", access_token },
+  });
+
+  const profile: OAuthProfile = {
+    id: facebookProfile.id,
+    email: facebookProfile.email,
+    provider: "facebook",
+  };
+
+  return await createOrUpdateOAuthUser(profile);
+};

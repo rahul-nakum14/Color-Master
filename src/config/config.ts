@@ -29,4 +29,10 @@ export const config = {
 
   // App URL
   APP_URL: process.env.APP_URL || "",
+
+  RABBITMQ_URL: process.env.RABBITMQ_URL || "amqp://localhost",
+
+  REDIS_URL: process.env.REDIS_URL || "redis://localhost:6379",
+  KAFKA_BROKER: process.env.KAFKA_BROKER || "localhost:9092",
+
 };

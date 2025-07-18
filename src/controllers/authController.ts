@@ -5,6 +5,7 @@ import * as emailService from "../services/emailService"
 import axios from "axios"
 import { config } from "../config/config"
 import { OAuthProfile } from "../types/auth"
+import qs from 'qs'; 
 
 export const signup = catchAsync(async (req: Request, res: Response) => {
   const { username, email, password } = req.body
@@ -47,10 +48,21 @@ export const refreshToken = catchAsync(async (req: Request, res: Response) => {
   res.json({ accessToken: newAccessToken })
 })
 
-import qs from 'qs'; // npm install qs
 
 export const googleAuth = catchAsync(async (req: Request, res: Response) => {
-  const { code } = req.body;
+  const { code, state } = req.body;
+
+  if (!state) {
+    return res.status(400).json({ message: 'Missing OAuth state' });
+  }
+
+  console.log("Received state from client:", state);
+
+  // If you store it in a cookie for example:
+  const storedState = req.cookies['oauth_state']; // <-- assumes cookie-parser middleware
+  if (state !== storedState) {
+    return res.status(403).json({ message: 'Invalid OAuth state — possible CSRF attack' });
+  }
 
   console.log('GOOGLE_REDIRECT_URI:', config.GOOGLE_REDIRECT_URI);
 
@@ -60,7 +72,7 @@ export const googleAuth = catchAsync(async (req: Request, res: Response) => {
       code,
       client_id: config.GOOGLE_CLIENT_ID,
       client_secret: config.GOOGLE_CLIENT_SECRET,
-      redirect_uri: 'https://jubilant-tribble-rqgjpg9ppw4hp95j-3001.app.github.dev/auth/google/callback',
+      redirect_uri: config.GOOGLE_REDIRECT_URI,
       grant_type: "authorization_code",
     }),
     {

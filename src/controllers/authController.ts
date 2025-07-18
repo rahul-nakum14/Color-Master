@@ -47,18 +47,31 @@ export const refreshToken = catchAsync(async (req: Request, res: Response) => {
   res.json({ accessToken: newAccessToken })
 })
 
+import qs from 'qs'; // npm install qs
+
 export const googleAuth = catchAsync(async (req: Request, res: Response) => {
   const { code } = req.body;
 
-  const { data } = await axios.post("https://oauth2.googleapis.com/token", {
-    code,
-    client_id: config.GOOGLE_CLIENT_ID,
-    client_secret:config.GOOGLE_CLIENT_SECRET,
-    redirect_uri: config.GOOGLE_REDIRECT_URI,
-    grant_type: "authorization_code",
-  });
+  console.log('GOOGLE_REDIRECT_URI:', config.GOOGLE_REDIRECT_URI);
 
-  const { access_token } = data;
+  const tokenRes = await axios.post(
+    "https://oauth2.googleapis.com/token",
+    qs.stringify({
+      code,
+      client_id: config.GOOGLE_CLIENT_ID,
+      client_secret: config.GOOGLE_CLIENT_SECRET,
+      redirect_uri: 'https://jubilant-tribble-rqgjpg9ppw4hp95j-3001.app.github.dev/auth/google/callback',
+      grant_type: "authorization_code",
+    }),
+    {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    }
+  );
+
+  const { access_token } = tokenRes.data;
+
   const { data: googleProfile } = await axios.get("https://www.googleapis.com/oauth2/v2/userinfo", {
     headers: { Authorization: `Bearer ${access_token}` },
   });
@@ -67,11 +80,22 @@ export const googleAuth = catchAsync(async (req: Request, res: Response) => {
     id: googleProfile.id,
     email: googleProfile.email,
     provider: "google",
+    photo: googleProfile.picture,
   };
 
   const { user, accessToken, refreshToken } = await authService.createOrUpdateOAuthUser(profile);
-  res.json({ user, accessToken, refreshToken });
+
+  res.json({
+    user: {
+      email: googleProfile.email,
+      name: googleProfile.name,
+      picture: googleProfile.picture,
+    },
+    accessToken,
+    refreshToken,
+  });
 });
+
 
 export const facebookAuth = catchAsync(async (req: Request, res: Response) => {
   const { code } = req.body;
@@ -94,6 +118,7 @@ export const facebookAuth = catchAsync(async (req: Request, res: Response) => {
     id: facebookProfile.id,
     email: facebookProfile.email,
     provider: "facebook",
+    photo: facebookProfile.photo
   };
 
   const { user, accessToken, refreshToken } = await authService.createOrUpdateOAuthUser(profile);

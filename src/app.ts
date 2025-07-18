@@ -15,7 +15,10 @@ connectDB()
 
 // Middleware
 app.use(helmet())
-app.use(cors())
+app.use(cors({
+  origin: "https://jubilant-tribble-rqgjpg9ppw4hp95j-3001.app.github.dev", 
+  credentials: true, // if using cookies or authorization headers
+}));
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 

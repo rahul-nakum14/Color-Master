@@ -6,12 +6,17 @@ import routes from "./routes"
 import { errorHandler } from "./middleware/errorHandler"
 import { connectDB } from "./config/database"
 import dotenv from "dotenv";
+import cookieParser from "cookie-parser";
+
 dotenv.config(); // Load .env file if present
 
 const app: Express = express()
 
 // Connect to MongoDB
 connectDB()
+
+// Middleware to parse cookies
+app.use(cookieParser());
 
 // Middleware
 app.use(helmet())

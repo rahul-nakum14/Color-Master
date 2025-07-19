@@ -49,64 +49,53 @@ export const refreshToken = catchAsync(async (req: Request, res: Response) => {
 })
 
 
-export const googleAuth = catchAsync(async (req: Request, res: Response) => {
-  const { code, state } = req.body;
+export const googleOAuthCallback = catchAsync(async (req: Request, res: Response) => {
+  const { code } = req.body;
 
-  if (!state) {
-    return res.status(400).json({ message: 'Missing OAuth state' });
+  if (!code) {
+    return res.status(400).json({ message: "Missing authorization code" });
   }
 
-  console.log("Received state from client:", state);
-
-  // If you store it in a cookie for example:
-  const storedState = req.cookies['oauth_state']; // <-- assumes cookie-parser middleware
-  if (state !== storedState) {
-    return res.status(403).json({ message: 'Invalid OAuth state — possible CSRF attack' });
+  const storedState = req.cookies["oauth_state"];
+  if (!storedState) {
+    return res.status(400).json({ message: "Missing stored OAuth state cookie" });
   }
 
-  console.log('GOOGLE_REDIRECT_URI:', config.GOOGLE_REDIRECT_URI);
+  res.clearCookie("oauth_state");
 
-  const tokenRes = await axios.post(
-    "https://oauth2.googleapis.com/token",
-    qs.stringify({
-      code,
-      client_id: config.GOOGLE_CLIENT_ID,
-      client_secret: config.GOOGLE_CLIENT_SECRET,
-      redirect_uri: config.GOOGLE_REDIRECT_URI,
-      grant_type: "authorization_code",
-    }),
-    {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-    }
-  );
-
-  const { access_token } = tokenRes.data;
-
-  const { data: googleProfile } = await axios.get("https://www.googleapis.com/oauth2/v2/userinfo", {
-    headers: { Authorization: `Bearer ${access_token}` },
-  });
-
-  const profile: OAuthProfile = {
-    id: googleProfile.id,
-    email: googleProfile.email,
-    provider: "google",
-    photo: googleProfile.picture,
-  };
+  const profile = await authService.exchangeGoogleCodeForProfile(code);
 
   const { user, accessToken, refreshToken } = await authService.createOrUpdateOAuthUser(profile);
 
   res.json({
     user: {
-      email: googleProfile.email,
-      name: googleProfile.name,
-      picture: googleProfile.picture,
+      email: user.email,
+      name: user.name,
+      picture: user.picture,
     },
     accessToken,
     refreshToken,
   });
 });
+
+export const googleOAuthInitiate = (req: Request, res: Response) => {
+  const state = crypto.randomUUID();
+
+  res.cookie("oauth_state", state, {
+    httpOnly: true,
+    secure: true, 
+    sameSite: "lax",
+    maxAge: 5 * 60 * 1000, 
+  });
+ 
+
+  const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+    `client_id=${config.GOOGLE_CLIENT_ID}` +
+    `&redirect_uri=${config.GOOGLE_REDIRECT_URI}` +
+    `&response_type=code&scope=profile email&state=${state}`;
+
+  res.json({ url: googleAuthUrl });
+};
 
 
 export const facebookAuth = catchAsync(async (req: Request, res: Response) => {

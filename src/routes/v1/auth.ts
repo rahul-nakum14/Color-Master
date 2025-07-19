@@ -11,7 +11,8 @@ router.post("/forgot-password", validate(authValidation.forgotPassword), authCon
 router.get("/verify-email/:token", authController.verifyEmail)
 router.post("/reset-password/:token", authController.resetPassword)
 router.post("/refresh-token", authController.refreshToken)
-router.post("/google", authController.googleAuth)
+router.get("/google/initiate", authController.googleOAuthInitiate)
+router.post("/google", authController.googleOAuthCallback)
 router.post("/facebook", authController.facebookAuth)
 
 export default router

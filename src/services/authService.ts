@@ -4,6 +4,8 @@ import User, { type IUser } from "../models/User"
 import ApiError from "../utils/apiError"
 import { config } from "../config/config"
 import { AuthResponse, OAuthProfile } from "../types/auth"
+import axios from "axios"
+import qs from "qs";
 
 export const createUser = async (
   username: string,
@@ -129,8 +131,43 @@ export const refreshAccessToken = async (refreshToken: string): Promise<{ access
   }
 };
 
+export const exchangeGoogleCodeForProfile = async (code: string): Promise<OAuthProfile> => {
+  // 1. Exchange code for access token
+  const tokenRes = await axios.post(
+    "https://oauth2.googleapis.com/token",
+    qs.stringify({
+      code,
+      client_id: config.GOOGLE_CLIENT_ID,
+      client_secret: config.GOOGLE_CLIENT_SECRET,
+      redirect_uri: config.GOOGLE_REDIRECT_URI,
+      grant_type: "authorization_code",
+    }),
+    {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    }
+  );
+
+  const { access_token } = tokenRes.data;
+
+  // 2. Get user profile using access token
+  const { data: googleProfile } = await axios.get("https://www.googleapis.com/oauth2/v2/userinfo", {
+    headers: { Authorization: `Bearer ${access_token}` },
+  });
+
+return {
+  id: googleProfile.id,
+  email: googleProfile.email,
+  provider: "google",
+  name: googleProfile.name,        // <-- Add this
+  photo: googleProfile.picture,    // <-- Rename to `photo` to match your typing
+};
+
+};
+
 export const createOrUpdateOAuthUser = async (profile: OAuthProfile): Promise<AuthResponse> => {
-  const { email, id, provider } = profile;
+  const { email, id, provider, name, photo } = profile;
 
   let user = await User.findOne({ [`oauthProviders.${provider}`]: id });
 
@@ -140,6 +177,8 @@ export const createOrUpdateOAuthUser = async (profile: OAuthProfile): Promise<Au
 
   if (user) {
     user.oauthProviders[provider] = id;
+    user.name = name || user.name;         // <-- update name
+    user.picture = photo || user.picture;  // <-- update picture
     user.isVerified = true;
     await user.save();
   } else {
@@ -147,6 +186,9 @@ export const createOrUpdateOAuthUser = async (profile: OAuthProfile): Promise<Au
       email,
       oauthProviders: { [provider]: id },
       isVerified: true,
+      name,
+      picture: photo,
+      username: email.split("@")[0], // fallback if username is required
     });
   }
 

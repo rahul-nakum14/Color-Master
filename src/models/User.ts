@@ -14,8 +14,12 @@ export interface IUser extends Document {
     google?: string;
     facebook?: string;
   };
+  name?: string; // <-- Add this
+  picture?: string; // <-- And this
+
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
+
 
 const UserSchema: Schema = new Schema({
   username: { type: String, required: true, unique: true },
@@ -30,6 +34,8 @@ const UserSchema: Schema = new Schema({
     google: { type: String },
     facebook: { type: String },
   },
+  name: { type: String },        // <-- Add this
+  picture: { type: String },     // <-- Add this
 });
 
 UserSchema.pre<IUser>('save', async function (next) {

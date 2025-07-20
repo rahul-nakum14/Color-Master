@@ -1,0 +1,100 @@
+<!-- <!DOCTYPE html>
+<html>
+<head>
+  <title>Stripe Elements Demo</title>
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    .StripeElement {
+      padding: 10px;
+      border: 1px solid #ccc;
+      margin-top: 10px;
+    }
+    #card-errors {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <h2>Pay $10</h2>
+  <form id="payment-form">
+    <div id="card-element"></div>
+    <button type="submit">Pay</button>
+    <div id="card-errors" role="alert"></div>
+  </form>
+
+  <script>
+    const stripe = Stripe("pk_test_51JAcZUSC3VzMdhdK6iTNDkiLJv4CPrzysbX9O9KQTjIbecpkO4WpBDfKTHid2SjdcM2q01Zk9qvHYDAqC7uFHpYA00PnYaolQ9"); // Replace with your test key
+    const elements = stripe.elements();
+    const card = elements.create("card");
+    card.mount("#card-element");
+
+    const form = document.getElementById("payment-form");
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const response = await fetch("/create-payment-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+
+      const data = await response.json();
+      const clientSecret = data.clientSecret;
+
+      if (!clientSecret) {
+        document.getElementById("card-errors").textContent = data.error || "Failed to get client secret.";
+        return;
+      }
+
+      const result = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: card,
+          billing_details: {
+            name: "John Doe",
+            email: "john@example.com",
+            address: {
+              line1: "123 Export Street",
+              city: "New York",
+              postal_code: "10001",
+              country: "US"
+            }
+          }
+        }
+      });
+
+      if (result.error) {
+        document.getElementById("card-errors").textContent = result.error.message;
+      } else if (result.paymentIntent && result.paymentIntent.status === "succeeded") {
+        alert("✅ Payment succeeded!");
+      }
+    });
+  </script>
+</body>
+</html> -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Stripe Checkout</title>
+</head>
+<body>
+  <h2>Pay $10 via Stripe Checkout</h2>
+  <button id="checkout-button">Pay $10</button>
+
+  <script>
+    document.getElementById("checkout-button").addEventListener("click", async () => {
+      const res = await fetch("/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const data = await res.json();
+
+      if (data.url) {
+        window.location.href = data.url; // Redirect to Stripe Checkout
+      } else {
+        alert("❌ Failed to create checkout session.");
+      }
+    });
+  </script>
+</body>
+</html>
